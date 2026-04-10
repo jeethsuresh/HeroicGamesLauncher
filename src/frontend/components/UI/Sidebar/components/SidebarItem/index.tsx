@@ -12,6 +12,8 @@ interface SidebarItemProps {
   url?: string
   icon?: FontAwesomeIconProps['icon']
   isActiveFallback?: boolean
+  /** When true, only `isActiveFallback` marks the item active (for multiple links to the same path). */
+  ignoreNavLinkActive?: boolean
   onClick?: MouseEventHandler
   className?: string
   elementType?: 'a' | 'button'
@@ -23,6 +25,7 @@ export default function SidebarItem({
   label,
   url = '',
   isActiveFallback = false,
+  ignoreNavLinkActive = false,
   onClick,
   className,
   elementType,
@@ -55,7 +58,9 @@ export default function SidebarItem({
         <NavLink
           className={({ isActive }) =>
             classNames('Sidebar__item', className, {
-              active: isActive || isActiveFallback
+              active: ignoreNavLinkActive
+                ? isActiveFallback
+                : isActive || isActiveFallback
             })
           }
           to={url}

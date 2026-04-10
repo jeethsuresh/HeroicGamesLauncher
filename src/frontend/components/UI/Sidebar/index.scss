@@ -118,6 +118,11 @@
           }
         }
       }
+
+      &.libraryNavWithLogin:hover .SidebarSubmenu.library,
+      &.libraryNavWithLogin:focus-within .SidebarSubmenu.library {
+        top: 114px;
+      }
     }
   }
 }
