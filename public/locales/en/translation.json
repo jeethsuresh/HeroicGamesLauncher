@@ -470,6 +470,9 @@
     "globalSettings": "Global Settings",
     "GOG": "GOG",
     "gog-store": "GOG Store",
+    "sidebarNav": {
+        "libraryAllGames": "All games"
+    },
     "header": {
         "categories": "Categories",
         "filters": "Filters",

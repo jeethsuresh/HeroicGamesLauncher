@@ -41,14 +41,29 @@ export default function SidebarLinks() {
     zoom,
     platform,
     refreshLibrary,
-    handleExternalLinkDialog
+    handleExternalLinkDialog,
+    customCategories,
+    currentCustomCategories,
+    setCurrentCustomCategories
   } = useContext(ContextProvider)
 
   const inWebviewScreen =
     location.pathname.includes('store') ||
     location.pathname.includes('last-url')
   const isSettings = location.pathname.includes('settings')
+  const isLibrarySection =
+    location.pathname === '/' || location.pathname.includes('gamepage')
   const isWin = platform === 'win32'
+
+  const categorySubmenuActive = (categoryKey: string | null) => {
+    if (categoryKey === null) {
+      return currentCustomCategories.length === 0
+    }
+    return (
+      currentCustomCategories.length === 1 &&
+      currentCustomCategories[0] === categoryKey
+    )
+  }
 
   const loggedIn =
     epic.username || gog.username || amazon.user_id || zoom.username
@@ -117,14 +132,51 @@ export default function SidebarLinks() {
           dataTour="sidebar-login"
         />
       )}
-      <SidebarItem
-        isActiveFallback={location.pathname.includes('gamepage')}
-        url="/"
-        icon={faGamepad}
-        label={t('Library')}
-        onClick={async () => handleRefresh()}
-        dataTour="sidebar-library"
-      />
+      <div
+        className={`SidebarItemWithSubmenu${!loggedIn ? ' libraryNavWithLogin' : ''}`}
+      >
+        <SidebarItem
+          isActiveFallback={location.pathname.includes('gamepage')}
+          url="/"
+          icon={faGamepad}
+          label={t('Library')}
+          onClick={async () => handleRefresh()}
+          dataTour="sidebar-library"
+        />
+        {isLibrarySection && (
+          <div className="SidebarSubmenu library">
+            <SidebarItem
+              url="/"
+              ignoreNavLinkActive
+              isActiveFallback={categorySubmenuActive(null)}
+              className="SidebarLinks__subItem"
+              label={t('sidebarNav.libraryAllGames', 'All games')}
+              onClick={() => setCurrentCustomCategories([])}
+            />
+            {customCategories.listCategories().map((category) => (
+              <SidebarItem
+                key={category}
+                url="/"
+                ignoreNavLinkActive
+                isActiveFallback={categorySubmenuActive(category)}
+                className="SidebarLinks__subItem"
+                label={category}
+                onClick={() => setCurrentCustomCategories([category])}
+              />
+            ))}
+            <SidebarItem
+              url="/"
+              ignoreNavLinkActive
+              isActiveFallback={categorySubmenuActive('preset_uncategorized')}
+              className="SidebarLinks__subItem"
+              label={t('header.uncategorized')}
+              onClick={() =>
+                setCurrentCustomCategories(['preset_uncategorized'])
+              }
+            />
+          </div>
+        )}
+      </div>
 
       <div className="SidebarItemWithSubmenu">
         <SidebarItem
