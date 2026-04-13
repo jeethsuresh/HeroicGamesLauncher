@@ -20,9 +20,10 @@ export type GameSettingsModalType = 'settings' | 'log' | 'category'
 type Props = {
   gameInfo: GameInfo
   type: GameSettingsModalType
+  categoryBulkAppNameWithRunners?: string[]
 }
 
-function SettingsModal({ gameInfo, type }: Props) {
+function SettingsModal({ gameInfo, type, categoryBulkAppNameWithRunners }: Props) {
   const { t } = useTranslation()
   const { closeSettingsModal } = useGlobalState.keys('closeSettingsModal')
 
@@ -62,7 +63,11 @@ function SettingsModal({ gameInfo, type }: Props) {
         <SettingsContext.Provider value={contextValues}>
           {type === 'settings' && <GamesSettings />}
           {type === 'log' && <LogSettings />}
-          {type === 'category' && <CategorySettings />}
+          {type === 'category' && (
+            <CategorySettings
+              bulkAppNameWithRunners={categoryBulkAppNameWithRunners}
+            />
+          )}
         </SettingsContext.Provider>
       </DialogContent>
     </Dialog>

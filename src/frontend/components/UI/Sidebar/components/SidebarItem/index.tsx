@@ -1,4 +1,4 @@
-import { MouseEventHandler } from 'react'
+import { DragEventHandler, MouseEventHandler } from 'react'
 import classNames from 'classnames'
 import { NavLink } from 'react-router-dom'
 import {
@@ -15,6 +15,10 @@ interface SidebarItemProps {
   /** When true, only `isActiveFallback` marks the item active (for multiple links to the same path). */
   ignoreNavLinkActive?: boolean
   onClick?: MouseEventHandler
+  onDragOver?: DragEventHandler
+  onDragEnter?: DragEventHandler
+  onDragLeave?: DragEventHandler
+  onDrop?: DragEventHandler
   className?: string
   elementType?: 'a' | 'button'
   dataTour?: string
@@ -27,6 +31,10 @@ export default function SidebarItem({
   isActiveFallback = false,
   ignoreNavLinkActive = false,
   onClick,
+  onDragOver,
+  onDragEnter,
+  onDragLeave,
+  onDrop,
   className,
   elementType,
   dataTour
@@ -65,6 +73,10 @@ export default function SidebarItem({
           }
           to={url}
           onClick={onClick}
+          onDragOver={onDragOver}
+          onDragEnter={onDragEnter}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
           data-tour={dataTour}
         >
           {itemContent}

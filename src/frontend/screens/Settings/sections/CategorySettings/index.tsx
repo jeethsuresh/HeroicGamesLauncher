@@ -12,7 +12,12 @@ import {
 } from 'frontend/components/UI/Dialog'
 import DeleteForeverIcon from '@mui/icons-material/DeleteForever'
 
-const CategorySettings = () => {
+type CategorySettingsProps = {
+  /** `${appName}_${runner}` keys; when multiple, toggles apply to every game. */
+  bulkAppNameWithRunners?: string[]
+}
+
+const CategorySettings = ({ bulkAppNameWithRunners }: CategorySettingsProps) => {
   const {
     customCategories,
     currentCustomCategories,
@@ -29,19 +34,29 @@ const CategorySettings = () => {
     [appName, runner]
   )
 
+  const categoryTargetKeys = useMemo(() => {
+    if (bulkAppNameWithRunners?.length) {
+      return bulkAppNameWithRunners
+    }
+    return [appNameWithRunner]
+  }, [bulkAppNameWithRunners, appNameWithRunner])
+
   const { t } = useTranslation()
 
   const updateCategories = () => {
     setAssignedCategories(
       customCategories
         .listCategories()
-        .filter((cat) => customCategories.list[cat].includes(appNameWithRunner))
+        .filter((cat) => {
+          const gamesInCat = customCategories.list[cat]
+          return categoryTargetKeys.every((key) => gamesInCat.includes(key))
+        })
     )
   }
 
   useEffect(() => {
     updateCategories()
-  }, [customCategories.list])
+  }, [customCategories.list, categoryTargetKeys])
 
   const isCategorySubmissionDisabled = useMemo(
     () =>
@@ -58,11 +73,11 @@ const CategorySettings = () => {
   }
 
   const handleRemoveGameFromCategory = (category: string) => {
-    customCategories.removeFromGame(category, appNameWithRunner)
+    customCategories.removeGamesFromCategory(category, categoryTargetKeys)
   }
 
   const handleAddGameToCategory = (category: string) => {
-    customCategories.addToGame(category, appNameWithRunner)
+    customCategories.addGamesToCategory(category, categoryTargetKeys)
     updateCategories()
   }
 

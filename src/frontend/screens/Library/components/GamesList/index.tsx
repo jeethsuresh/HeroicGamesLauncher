@@ -154,9 +154,9 @@ const GamesList = ({
             <GameCard
               key={`${runner}_${app_name}${isFirstLane ? '_firstlane' : ''}`}
               hasUpdate={hasUpdate}
-              buttonClick={() => {
-                if (gameInfo.runner !== 'sideload')
-                  handleGameCardClick(app_name, runner, gameInfo)
+              handleGameCardClick={(info) => {
+                if (info.runner !== 'sideload')
+                  handleGameCardClick(info.app_name, info.runner, info)
               }}
               forceCard={layout === 'grid'}
               isRecent={isRecent}

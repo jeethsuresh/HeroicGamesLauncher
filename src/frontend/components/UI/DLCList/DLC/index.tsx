@@ -98,10 +98,8 @@ const DLC = ({ dlc, runner, mainAppInfo, onClose }: Props) => {
     <>
       {showUninstallModal && (
         <UninstallModal
-          appName={app_name}
-          runner={runner}
+          games={[{ appName: app_name, runner, isDlc: true }]}
           onClose={() => setShowUninstallModal(false)}
-          isDlc
         />
       )}
       <div className="dlcItem">

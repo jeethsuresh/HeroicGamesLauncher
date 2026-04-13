@@ -291,10 +291,14 @@ export default function GamesSubmenu({
       <div className="gameTools subMenuContainer">
         {showUninstallModal && (
           <UninstallModal
-            appName={appName}
-            runner={runner}
+            games={[
+              {
+                appName,
+                runner,
+                isDlc: false
+              }
+            ]}
             onClose={() => setShowUninstallModal(false)}
-            isDlc={false}
           />
         )}
         <div className={`submenu`}>

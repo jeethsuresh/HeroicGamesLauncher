@@ -13,26 +13,38 @@ import {
   faTags
 } from '@fortawesome/free-solid-svg-icons'
 import { useLocation } from 'react-router-dom'
-import { useContext } from 'react'
+import { useContext, useState, type DragEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   faDiscord,
   faGithub,
   faPatreon
 } from '@fortawesome/free-brands-svg-icons'
-import { openDiscordLink } from 'frontend/helpers'
+import classNames from 'classnames'
+import { openDiscordLink, notify } from 'frontend/helpers'
+import {
+  HEROIC_LIBRARY_GAMES_DRAG_MIME,
+  libraryGameStorageKey,
+  parseDragPayloadGames
+} from 'frontend/constants/libraryDnD'
 
 import ContextProvider from 'frontend/state/ContextProvider'
+import { useLibrarySelectionStore } from 'frontend/state/librarySelectionStore'
 import QuitButton from '../QuitButton'
 import { SHOW_EXTERNAL_LINK_DIALOG_STORAGE_KEY } from 'frontend/components/UI/ExternalLinkDialog'
 import SidebarItem from '../SidebarItem'
 
 type PathSplit = [a: undefined, b: undefined, type: string]
 
+function dndMimeOk(e: DragEvent) {
+  return Array.from(e.dataTransfer.types).includes(HEROIC_LIBRARY_GAMES_DRAG_MIME)
+}
+
 export default function SidebarLinks() {
   const { t } = useTranslation()
   const location = useLocation() as { pathname: string }
   const [, , type] = location.pathname.split('/') as PathSplit
+  const [dropHoverCategory, setDropHoverCategory] = useState<string | null>(null)
 
   const {
     amazon,
@@ -159,9 +171,80 @@ export default function SidebarLinks() {
                 url="/"
                 ignoreNavLinkActive
                 isActiveFallback={categorySubmenuActive(category)}
-                className="SidebarLinks__subItem"
+                className={classNames('SidebarLinks__subItem', {
+                  'SidebarLinks__subItem--dropHover':
+                    dropHoverCategory === category
+                })}
                 label={category}
                 onClick={() => setCurrentCustomCategories([category])}
+                onDragOver={(e) => {
+                  if (!dndMimeOk(e)) {
+                    return
+                  }
+                  e.preventDefault()
+                  e.stopPropagation()
+                  e.dataTransfer.dropEffect = 'copy'
+                  setDropHoverCategory(category)
+                }}
+                onDragEnter={(e) => {
+                  if (!dndMimeOk(e)) {
+                    return
+                  }
+                  e.preventDefault()
+                  setDropHoverCategory(category)
+                }}
+                onDragLeave={(e) => {
+                  const rel = e.relatedTarget as Node | null
+                  if (e.currentTarget.contains(rel)) {
+                    return
+                  }
+                  setDropHoverCategory((prev) =>
+                    prev === category ? null : prev
+                  )
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setDropHoverCategory(null)
+                  const raw = e.dataTransfer.getData(
+                    HEROIC_LIBRARY_GAMES_DRAG_MIME
+                  )
+                  const games = parseDragPayloadGames(raw)
+                  if (!games?.length) {
+                    return
+                  }
+                  const seenKeys = new Set<string>()
+                  const keysToAdd: string[] = []
+                  let added = 0
+                  for (const { appName, runner } of games) {
+                    const gameKey = libraryGameStorageKey(appName, runner)
+                    if (seenKeys.has(gameKey)) {
+                      continue
+                    }
+                    seenKeys.add(gameKey)
+                    const already =
+                      customCategories.list[category]?.includes(gameKey)
+                    if (!already) {
+                      keysToAdd.push(gameKey)
+                      added++
+                    }
+                  }
+                  if (keysToAdd.length) {
+                    customCategories.addGamesToCategory(category, keysToAdd)
+                  }
+                  if (added > 0) {
+                    notify({
+                      title: t('sidebarNav.categoryDropTitle', 'Categories'),
+                      body: t('sidebarNav.categoryDropBody', {
+                        defaultValue:
+                          '{{count}} game(s) added to "{{category}}".',
+                        count: added,
+                        category
+                      })
+                    })
+                  }
+                  useLibrarySelectionStore.getState().clear()
+                }}
               />
             ))}
             <SidebarItem

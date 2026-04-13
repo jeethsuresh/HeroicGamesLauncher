@@ -25,6 +25,42 @@
   aspect-ratio: 328/205;
 }
 
+.gameCard.libraryGameCardSelected,
+.gameListItem.libraryGameCardSelected {
+  outline: 2px solid var(--accent-overlay, var(--accent));
+  outline-offset: 2px;
+}
+
+.gameCard .gameCardSelectCheckboxWrap,
+.gameListItem .gameCardSelectCheckboxWrap {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 8;
+  line-height: 0;
+  border-radius: var(--space-3xs);
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.gameListItem .gameCardSelectCheckboxWrap {
+  top: 6px;
+  left: 8px;
+}
+
+.gameCardSelectCheckboxWrap:not(.gameCardSelectCheckboxWrap--checked) {
+  opacity: 0.55;
+}
+
+.gameCardSelectCheckboxWrap.gameCardSelectCheckboxWrap--checked {
+  opacity: 1;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.gameCardSelectCheckboxWrap .MuiCheckbox-root {
+  padding: 2px;
+}
+
 .gameCard:focus-within {
   outline: -webkit-focus-ring-color auto 1px;
 }

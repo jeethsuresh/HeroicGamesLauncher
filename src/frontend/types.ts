@@ -46,18 +46,27 @@ export interface ContextType {
   hiddenGames: {
     list: HiddenGame[]
     add: (appNameToHide: string, appTitle: string) => void
+    addGames: (games: readonly HiddenGame[]) => void
     remove: (appNameToUnhide: string) => void
+    removeGames: (appNames: readonly string[]) => void
   }
   favouriteGames: {
     list: HiddenGame[]
     add: (appNameToAdd: string, appTitle: string) => void
+    addGames: (games: readonly HiddenGame[]) => void
     remove: (appNameToRemove: string) => void
+    removeGames: (appNames: readonly string[]) => void
   }
   customCategories: {
     list: Record<string, string[]>
     listCategories: () => string[]
     addToGame: (category: string, appName: string) => void
+    addGamesToCategory: (category: string, gameStorageKeys: readonly string[]) => void
     removeFromGame: (category: string, appName: string) => void
+    removeGamesFromCategory: (
+      category: string,
+      gameStorageKeys: readonly string[]
+    ) => void
     addCategory: (newCategory: string) => void
     removeCategory: (category: string) => void
     renameCategory: (oldName: string, newName: string) => void
@@ -255,6 +264,10 @@ export interface LibraryContextType {
   alphabetFilterLetter: string | null
   setAlphabetFilterLetter: (letter: string | null) => void
   gamesForAlphabetFilter: GameInfo[]
+  /** Ordered keys (`appName_runner`) for the main library grid (Shift+click range). */
+  visibleLibraryGameKeys: string[]
+  /** Shift+click selects a range in `visibleLibraryGameKeys` (selection lives in `librarySelectionStore`). */
+  selectLibraryGamesWithShift: (appName: string, runner: Runner) => void
 }
 
 export interface GameContextType {

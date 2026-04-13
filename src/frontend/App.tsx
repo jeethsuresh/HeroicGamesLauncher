@@ -77,8 +77,17 @@ function Root() {
         disableAnimations,
         consoleMode: isConsoleMode
       })}
-      // disable dragging for all elements by default
-      onDragStart={(e) => e.preventDefault()}
+      // disable dragging for all elements by default (except library game cards)
+      onDragStart={(e) => {
+        if (
+          (e.target as HTMLElement | null)?.closest(
+            '[data-heroic-library-game-drag="1"]'
+          )
+        ) {
+          return
+        }
+        e.preventDefault()
+      }}
     >
       <ThemeProvider theme={theme}>
         {isConsoleMode ? (

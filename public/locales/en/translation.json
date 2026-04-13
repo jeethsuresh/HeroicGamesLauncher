@@ -471,7 +471,9 @@
     "GOG": "GOG",
     "gog-store": "GOG Store",
     "sidebarNav": {
-        "libraryAllGames": "All games"
+        "libraryAllGames": "All games",
+        "categoryDropTitle": "Categories",
+        "categoryDropBody": "{{count}} game(s) added to \"{{category}}\"."
     },
     "header": {
         "categories": "Categories",
@@ -613,6 +615,7 @@
         "options": "Launch Options..."
     },
     "library": {
+        "selectGameCheckbox": "Select game for categories and multi-drag",
         "hideAlphabetFilter": "Hide Alphabet Filter",
         "showAlphabetFilter": "Show Alphabet Filter",
         "sortAscending": "Sort Ascending",

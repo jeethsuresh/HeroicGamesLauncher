@@ -65,6 +65,12 @@
       & + .Sidebar__item:not(.SidebarLinks__subItem) {
         margin-top: 4px;
       }
+
+      &.SidebarLinks__subItem--dropHover {
+        background-color: var(--navbar-active-background);
+        outline: 1px dashed var(--accent-overlay, var(--accent));
+        outline-offset: -1px;
+      }
     }
 
     &:hover {

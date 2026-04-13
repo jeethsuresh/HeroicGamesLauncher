@@ -1,6 +1,13 @@
 import './index.css'
 
-import { useContext, CSSProperties, useMemo, useState, useEffect } from 'react'
+import {
+  useContext,
+  CSSProperties,
+  useMemo,
+  useState,
+  useEffect,
+  useCallback
+} from 'react'
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faRepeat, faBan } from '@fortawesome/free-solid-svg-icons'
@@ -28,11 +35,29 @@ import RemoveCircleIcon from '@mui/icons-material/RemoveCircle'
 
 import classNames from 'classnames'
 import StoreLogos from 'frontend/components/UI/StoreLogos'
-import UninstallModal from 'frontend/components/UI/UninstallModal'
+import UninstallModal, {
+  type UninstallModalGame
+} from 'frontend/components/UI/UninstallModal'
 import { getCardStatus, getImageFormatting } from './constants'
 import { hasStatus } from 'frontend/hooks/hasStatus'
 import fallBackImage from 'frontend/assets/heroic_card.jpg'
+import Checkbox from '@mui/material/Checkbox'
 import LibraryContext from '../../LibraryContext'
+import {
+  gamesForLibraryDrag,
+  HEROIC_LIBRARY_GAMES_DRAG_MIME,
+  libraryBulkGameTargets,
+  libraryGameStorageKey,
+  type LibraryGameDragGame
+} from 'frontend/constants/libraryDnD'
+import {
+  getLibrarySelectionKeys,
+  useLibrarySelectionStore
+} from 'frontend/state/librarySelectionStore'
+import {
+  openInstallGameModal,
+  useInstallGameModal
+} from 'frontend/state/InstallGameModal'
 import useGlobalState from 'frontend/state/GlobalStateV2'
 import {
   Cancel,
@@ -52,10 +77,9 @@ import {
   VisibilityOff
 } from '@mui/icons-material'
 import EditGameDialog from 'frontend/components/UI/EditGameDialog'
-import { openInstallGameModal } from 'frontend/state/InstallGameModal'
 
 interface Card {
-  buttonClick: () => void
+  handleGameCardClick: (gameInfo: GameInfo) => void
   hasUpdate: boolean
   isRecent: boolean
   justPlayed: boolean
@@ -68,7 +92,7 @@ const storage: Storage = window.localStorage
 
 const GameCard = ({
   hasUpdate,
-  buttonClick,
+  handleGameCardClick,
   forceCard,
   isRecent = false,
   justPlayed = false,
@@ -94,7 +118,9 @@ const GameCard = ({
   }, [])
 
   const [gameInfo, setGameInfo] = useState<GameInfo>(gameInfoFromProps)
-  const [showUninstallModal, setShowUninstallModal] = useState(false)
+  const [uninstallModalGames, setUninstallModalGames] = useState<
+    UninstallModalGame[] | null
+  >(null)
   const [isLaunching, setIsLaunching] = useState(false)
 
   const { t } = useTranslation('gamepage')
@@ -107,7 +133,9 @@ const GameCard = ({
     favouriteGames,
     showDialogModal,
     activeController,
-    connectivity
+    connectivity,
+    libraryStatus,
+    gameUpdates
   } = useContext(ContextProvider)
   const { openGameSettingsModal, openGameLogsModal, openGameCategoriesModal } =
     useGlobalState.keys(
@@ -116,7 +144,7 @@ const GameCard = ({
       'openGameCategoriesModal'
     )
 
-  const { layout } = useContext(LibraryContext)
+  const { layout, selectLibraryGamesWithShift } = useContext(LibraryContext)
 
   const {
     art_logo: logo = undefined,
@@ -130,6 +158,124 @@ const GameCard = ({
     gameInfoFromProps.overrides?.art_cover || gameInfoFromProps.art_cover
   const cover =
     gameInfoFromProps.overrides?.art_square || gameInfoFromProps.art_square
+
+  const gameStorageKey = useMemo(
+    () => libraryGameStorageKey(appName, runner),
+    [appName, runner]
+  )
+
+  /** Zustand: stable selector ref when `gameStorageKey` is unchanged (see zustand docs / “unstable selector”). */
+  const libraryGameSelected = useLibrarySelectionStore(
+    useCallback(
+      (state) => state.selectedKeys.includes(gameStorageKey),
+      [gameStorageKey]
+    )
+  )
+
+  const toggleLibraryGameInSelection = useCallback(() => {
+    useLibrarySelectionStore.getState().toggle(appName, runner)
+  }, [appName, runner])
+
+  const clearLibrarySelection = useCallback(() => {
+    useLibrarySelectionStore.getState().clear()
+  }, [])
+
+  /** Snapshot selection once; after clear(), live keys are empty and bulk would collapse to one game. */
+  const getBulkTargets = useCallback((): LibraryGameDragGame[] => {
+    return libraryBulkGameTargets(appName, runner, [
+      ...getLibrarySelectionKeys()
+    ])
+  }, [appName, runner])
+
+  const gameInfoForTarget = useCallback(
+    async (t: { appName: string; runner: Runner }) => {
+      if (t.appName === appName && t.runner === runner) {
+        return gameInfo
+      }
+      return getGameInfo(t.appName, t.runner)
+    },
+    [appName, runner, gameInfo]
+  )
+
+  const openCategoriesForSelection = useCallback(() => {
+    const targets = getBulkTargets()
+    const bulkKeys =
+      targets.length > 1
+        ? targets.map((tg) => libraryGameStorageKey(tg.appName, tg.runner))
+        : undefined
+    openGameCategoriesModal(gameInfo, bulkKeys)
+  }, [gameInfo, getBulkTargets, openGameCategoriesModal])
+
+  const onUninstallClick = useCallback(async () => {
+    const targets = getBulkTargets()
+    const games: UninstallModalGame[] = []
+    for (const t of targets) {
+      const info = await gameInfoForTarget(t)
+      if (!info) {
+        continue
+      }
+      const isDlc =
+        info.runner !== 'sideload' ? Boolean(info.install.is_dlc) : false
+      games.push({ appName: t.appName, runner: t.runner, isDlc })
+    }
+    if (games.length) {
+      setUninstallModalGames(games)
+    }
+  }, [getBulkTargets, gameInfoForTarget])
+
+  const runBulkInstallModalsInner = useCallback(async () => {
+    const targets = getBulkTargets()
+    const toInstall: GameInfo[] = []
+    for (const t of targets) {
+      const info = await gameInfoForTarget(t)
+      if (
+        info &&
+        info.runner !== 'sideload' &&
+        (info.installable === undefined || info.installable) &&
+        !info.is_installed
+      ) {
+        toInstall.push(info)
+      }
+    }
+    for (let i = 0; i < toInstall.length; i++) {
+      handleGameCardClick(toInstall[i]!)
+      if (i < toInstall.length - 1) {
+        await new Promise<void>((resolve) => {
+          const timeout = window.setTimeout(() => {
+            unsubscribe()
+            resolve()
+          }, 120_000)
+          let sawOpen = false
+          let unsubscribe: () => void = () => {}
+          unsubscribe = useInstallGameModal.subscribe((state) => {
+            if (state.isOpen) {
+              sawOpen = true
+            } else if (sawOpen) {
+              window.clearTimeout(timeout)
+              unsubscribe()
+              resolve()
+            }
+          })
+        })
+      }
+    }
+  }, [getBulkTargets, gameInfoForTarget, handleGameCardClick])
+
+  const runBulkInstallModals = useCallback(async () => {
+    await runBulkInstallModalsInner()
+    clearLibrarySelection()
+  }, [runBulkInstallModalsInner, clearLibrarySelection])
+
+  const runBulkUpdate = useCallback(async () => {
+    const targets = getBulkTargets()
+    for (const t of targets) {
+      const info = await gameInfoForTarget(t)
+      if (info && info.runner !== 'sideload') {
+        updateGame({ appName: t.appName, runner: t.runner, gameInfo: info })
+      }
+    }
+    clearLibrarySelection()
+  }, [getBulkTargets, gameInfoForTarget, clearLibrarySelection])
 
   const isInstallable =
     gameInfo.installable === undefined || gameInfo.installable // If it's undefined we assume it's installable
@@ -154,11 +300,6 @@ const GameCard = ({
     updateGameInfo()
   }, [status])
 
-  async function handleUpdate() {
-    if (gameInfo.runner !== 'sideload')
-      updateGame({ appName, runner, gameInfo })
-  }
-
   const grid = forceCard || layout === 'grid'
 
   const {
@@ -177,7 +318,11 @@ const GameCard = ({
     : '100%'
 
   const handleRemoveFromQueue = () => {
-    window.api.removeFromDMQueue(appName)
+    const targets = getBulkTargets()
+    for (const t of targets) {
+      window.api.removeFromDMQueue(t.appName)
+    }
+    clearLibrarySelection()
   }
 
   const renderIcon = () => {
@@ -264,7 +409,7 @@ const GameCard = ({
       return (
         <SvgButton
           className="downIcon"
-          onClick={() => buttonClick()}
+          onClick={() => void runBulkInstallModals()}
           title={`${t('button.install')} (${title})`}
         >
           <DownIcon />
@@ -284,10 +429,6 @@ const GameCard = ({
       (favouriteGame: FavouriteGame) => favouriteGame.appName === appName
     )
   }, [favouriteGames, appName])
-
-  const onUninstallClick = function () {
-    setShowUninstallModal(true)
-  }
 
   const isSideloaded = runner === 'sideload'
 
@@ -313,14 +454,34 @@ const GameCard = ({
     {
       // remove from install queue
       label: t('button.queue.remove'),
-      onclick: () => handleRemoveFromQueue(),
+      onclick: () => {
+        const targets = getBulkTargets()
+        for (const t of targets) {
+          window.api.removeFromDMQueue(t.appName)
+        }
+        clearLibrarySelection()
+      },
       show: isQueued && !isInstalling,
       icon: <Cancel />
     },
     {
       // stop if running
       label: t('label.playing.stop'),
-      onclick: async () => handlePlay(runner),
+      onclick: async () => {
+        const targets = getBulkTargets()
+        for (const t of targets) {
+          const playing = libraryStatus.find(
+            (st) =>
+              st.appName === t.appName &&
+              st.runner === t.runner &&
+              st.status === 'playing'
+          )
+          if (playing) {
+            await sendKill(t.appName, t.runner)
+          }
+        }
+        clearLibrarySelection()
+      },
       show: isPlaying,
       icon: <Cancel />
     },
@@ -334,42 +495,59 @@ const GameCard = ({
     {
       // update
       label: t('button.update', 'Update'),
-      onclick: async () => handleUpdate(),
+      onclick: () => void runBulkUpdate(),
       show: hasUpdate && !isUpdating && !isQueued,
       icon: <Upgrade />
     },
     {
       // install
       label: t('button.install'),
-      onclick: () => buttonClick(),
+      onclick: () => void runBulkInstallModals(),
       show: !isInstalled && !isQueued && isInstallable,
       icon: <Download />
     },
     {
       // cancel installation/update
       label: t('button.cancel'),
-      onclick: async () => handlePlay(runner),
+      onclick: async () => {
+        const targets = getBulkTargets()
+        for (const t of targets) {
+          const st = libraryStatus.find(
+            (s) => s.appName === t.appName && s.runner === t.runner
+          )
+          if (st && (st.status === 'installing' || st.status === 'updating')) {
+            await sendKill(t.appName, t.runner)
+          }
+        }
+        clearLibrarySelection()
+      },
       show: isInstalling || isUpdating,
       icon: <Cancel />
     },
     {
       // open the game page
       label: t('button.details', 'Details'),
-      onclick: () =>
-        navigate(`/gamepage/${runner}/${appName}`, { state: { gameInfo } }),
+      onclick: () => {
+        navigate(`/gamepage/${runner}/${appName}`, { state: { gameInfo } })
+        clearLibrarySelection()
+      },
       show: true,
       icon: <OpenInNew />
     },
     {
       // settings
       label: t('submenu.settings', 'Settings'),
-      onclick: () => openGameSettingsModal(gameInfo),
+      onclick: () => {
+        openGameSettingsModal(gameInfo)
+      },
       show: isInstalled && !isUninstalling && !isBrowserGame,
       icon: <Settings />
     },
     {
       label: t('submenu.logs', 'Logs'),
-      onclick: () => openGameLogsModal(gameInfo),
+      onclick: () => {
+        openGameLogsModal(gameInfo)
+      },
       show: isInstalled && !isUninstalling && !isBrowserGame,
       icon: <Description />
     },
@@ -384,38 +562,88 @@ const GameCard = ({
     {
       // hide
       label: t('button.hide_game', 'Hide Game'),
-      onclick: () => hiddenGames.add(appName, title),
+      onclick: () =>
+        void (async () => {
+          const targets = getBulkTargets()
+          const alreadyHidden = new Set(
+            hiddenGames.list.map((h: HiddenGame) => h.appName)
+          )
+          const toHide: HiddenGame[] = []
+          for (const tg of targets) {
+            if (alreadyHidden.has(tg.appName)) {
+              continue
+            }
+            const info = await gameInfoForTarget(tg)
+            toHide.push({
+              appName: tg.appName,
+              title: info?.title ?? tg.appName
+            })
+          }
+          if (toHide.length) {
+            hiddenGames.addGames(toHide)
+          }
+          clearLibrarySelection()
+        })(),
       show: !isHiddenGame,
       icon: <VisibilityOff />
     },
     {
       // unhide
       label: t('button.unhide_game', 'Unhide Game'),
-      onclick: () => hiddenGames.remove(appName),
+      onclick: () => {
+        const targets = getBulkTargets()
+        hiddenGames.removeGames(targets.map((tg) => tg.appName))
+        clearLibrarySelection()
+      },
       show: isHiddenGame,
       icon: <Visibility />
     },
     {
       label: t('button.add_to_favourites', 'Add To Favourites'),
-      onclick: () => favouriteGames.add(appName, title),
+      onclick: () =>
+        void (async () => {
+          const targets = getBulkTargets()
+          const toAdd: FavouriteGame[] = []
+          for (const tg of targets) {
+            const info = await gameInfoForTarget(tg)
+            toAdd.push({
+              appName: tg.appName,
+              title: info?.title ?? tg.appName
+            })
+          }
+          if (toAdd.length) {
+            favouriteGames.addGames(toAdd)
+          }
+          clearLibrarySelection()
+        })(),
       show: !isFavouriteGame,
       icon: <Favorite />
     },
     {
       label: t('submenu.categories', 'Categories'),
-      onclick: () => openGameCategoriesModal(gameInfo),
+      onclick: () => openCategoriesForSelection(),
       show: true,
       icon: <List />
     },
     {
       label: t('button.remove_from_favourites', 'Remove From Favourites'),
-      onclick: () => favouriteGames.remove(appName),
+      onclick: () => {
+        const targets = getBulkTargets()
+        favouriteGames.removeGames(targets.map((tg) => tg.appName))
+        clearLibrarySelection()
+      },
       show: isFavouriteGame,
       icon: <FavoriteBorder />
     },
     {
       label: t('button.remove_from_recent', 'Remove From Recent'),
-      onclick: async () => window.api.removeRecentGame(appName),
+      onclick: async () => {
+        const targets = getBulkTargets()
+        for (const tg of targets) {
+          await window.api.removeRecentGame(tg.appName)
+        }
+        clearLibrarySelection()
+      },
       show: isRecent,
       icon: <PlaylistRemove />
     },
@@ -433,7 +661,8 @@ const GameCard = ({
     hidden: isHiddenGame,
     notAvailable: notAvailable,
     gamepad: activeController,
-    justPlayed: justPlayed
+    justPlayed: justPlayed,
+    libraryGameCardSelected: libraryGameSelected
   })
 
   const imgClasses = classNames('gameImg', { installed: isInstalled })
@@ -459,12 +688,13 @@ const GameCard = ({
 
   return (
     <div>
-      {showUninstallModal && (
+      {uninstallModalGames && (
         <UninstallModal
-          appName={appName}
-          runner={runner}
-          isDlc={Boolean(gameInfo.install.is_dlc)}
-          onClose={() => setShowUninstallModal(false)}
+          games={uninstallModalGames}
+          onClose={() => {
+            setUninstallModalGames(null)
+            clearLibrarySelection()
+          }}
         />
       )}
       <ContextMenu items={items}>
@@ -472,7 +702,62 @@ const GameCard = ({
           className={wrapperClasses}
           data-app-name={appName}
           data-tour={dataTour}
+          data-heroic-library-game-drag="1"
+          draggable
+          onClickCapture={(e) => {
+            if (e.shiftKey) {
+              e.preventDefault()
+              e.stopPropagation()
+              selectLibraryGamesWithShift(appName, runner)
+              return
+            }
+            if (e.ctrlKey || e.metaKey) {
+              e.preventDefault()
+              e.stopPropagation()
+              toggleLibraryGameInSelection()
+            }
+          }}
+          onDragStart={(e) => {
+            const games = gamesForLibraryDrag(
+              appName,
+              runner,
+              getLibrarySelectionKeys()
+            )
+            e.dataTransfer.setData(
+              HEROIC_LIBRARY_GAMES_DRAG_MIME,
+              JSON.stringify({ games })
+            )
+            e.dataTransfer.effectAllowed = 'copy'
+          }}
         >
+          <div
+            className={classNames('gameCardSelectCheckboxWrap', {
+              'gameCardSelectCheckboxWrap--checked': libraryGameSelected
+            })}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <Checkbox
+              size="small"
+              className="gameCardSelectCheckbox"
+              checked={libraryGameSelected}
+              tabIndex={0}
+              inputProps={{
+                'aria-label': t2(
+                  'library.selectGameCheckbox',
+                  'Select game for categories and multi-drag'
+                )
+              }}
+              sx={{
+                padding: '4px',
+                color: 'var(--text-secondary, rgba(255,255,255,0.7))',
+                '&.Mui-checked': {
+                  color: 'var(--accent, #7fdfff)'
+                }
+              }}
+              onChange={() => toggleLibraryGameInSelection()}
+            />
+          </div>
           {haveStatus && <span className="gameCardStatus">{label}</span>}
           {showUpdateBadge && (
             <span className="gameCardUpdateBadge">
@@ -485,6 +770,7 @@ const GameCard = ({
             style={
               { '--installing-effect': installingGrayscale } as CSSProperties
             }
+            onClick={() => useLibrarySelectionStore.getState().clear()}
           >
             <StoreLogos runner={runner} />
             {justPlayed ? (
@@ -492,12 +778,14 @@ const GameCard = ({
                 src={art_cover || fallBackImage}
                 className="justPlayedImg"
                 alt={title}
+                draggable={false}
               />
             ) : (
               <CachedImage
                 src={getImageFormatting(cover, runner)}
                 className={imgClasses}
                 alt="cover"
+                draggable={false}
               />
             )}
             {(justPlayed || runner !== 'nile') && logo && (
@@ -505,6 +793,7 @@ const GameCard = ({
                 alt="logo"
                 src={`${logo}?h=400&resize=1&w=300`}
                 className={logoClasses}
+                draggable={false}
               />
             )}
             {haveStatus && (
@@ -540,7 +829,7 @@ const GameCard = ({
                 <SvgButton
                   className="updateIcon"
                   title={`${t('button.update')} (${title})`}
-                  onClick={async () => handleUpdate()}
+                  onClick={() => void runBulkUpdate()}
                 >
                   <FontAwesomeIcon size={'2x'} icon={faRepeat} />
                 </SvgButton>
@@ -550,7 +839,9 @@ const GameCard = ({
                   <SvgButton
                     title={`${t('submenu.settings')} (${title})`}
                     className="settingsIcon"
-                    onClick={() => openGameSettingsModal(gameInfo)}
+                    onClick={() => {
+                      openGameSettingsModal(gameInfo)
+                    }}
                   >
                     <SettingsIcon />
                   </SvgButton>
@@ -565,42 +856,93 @@ const GameCard = ({
   )
 
   async function handlePlay(runner: Runner) {
-    if (!isInstalled && !isQueued && gameInfo.runner !== 'sideload') {
-      return install({
-        gameInfo,
-        installPath: folder || 'default',
-        isInstalling,
-        previousProgress,
-        progress,
-        t,
-        showDialogModal
-      })
-    }
+    const bulk = getBulkTargets()
+    try {
+      if (!isInstalled && !isQueued && gameInfo.runner !== 'sideload') {
+        if (bulk.length > 1) {
+          await runBulkInstallModalsInner()
+          return
+        }
+        await install({
+          gameInfo,
+          installPath: folder || 'default',
+          isInstalling,
+          previousProgress,
+          progress,
+          t,
+          showDialogModal
+        })
+        return
+      }
 
-    if (isPlaying || isUpdating) {
-      return sendKill(appName, runner)
-    }
+      if (isPlaying || isUpdating) {
+        if (bulk.length > 1) {
+          for (const target of bulk) {
+            const st = libraryStatus.find(
+              (s) => s.appName === target.appName && s.runner === target.runner
+            )
+            if (st && (st.status === 'playing' || st.status === 'updating')) {
+              await sendKill(target.appName, target.runner)
+            }
+          }
+          return
+        }
+        await sendKill(appName, runner)
+        return
+      }
 
-    if (isQueued) {
-      storage.removeItem(appName)
-      return window.api.removeFromDMQueue(appName)
-    }
+      if (isQueued) {
+        if (bulk.length > 1) {
+          for (const target of bulk) {
+            storage.removeItem(target.appName)
+            await window.api.removeFromDMQueue(target.appName)
+          }
+          return
+        }
+        storage.removeItem(appName)
+        await window.api.removeFromDMQueue(appName)
+        return
+      }
 
-    if (isInstalled) {
-      setIsLaunching(true)
-      const isOffline = connectivity.status !== 'online'
-      const notPlayableOffline = isOffline && !gameInfo.canRunOffline
-      await launch({
-        appName,
-        t,
-        runner,
-        hasUpdate,
-        showDialogModal,
-        notPlayableOffline
-      })
-      setIsLaunching(false)
+      if (isInstalled) {
+        setIsLaunching(true)
+        try {
+          const isOffline = connectivity.status !== 'online'
+          if (bulk.length > 1) {
+            for (const target of bulk) {
+              const info = await gameInfoForTarget(target)
+              if (!info?.is_installed) {
+                continue
+              }
+              const hasUpd = Boolean(gameUpdates?.includes(target.appName))
+              const notPlayableOffline = isOffline && !info.canRunOffline
+              await launch({
+                appName: target.appName,
+                t,
+                runner: target.runner,
+                hasUpdate: hasUpd,
+                showDialogModal,
+                notPlayableOffline
+              })
+            }
+          } else {
+            const notPlayableOffline = isOffline && !gameInfo.canRunOffline
+            await launch({
+              appName,
+              t,
+              runner,
+              hasUpdate,
+              showDialogModal,
+              notPlayableOffline
+            })
+          }
+        } finally {
+          setIsLaunching(false)
+        }
+      }
+    } finally {
+      clearLibrarySelection()
     }
-    return
   }
 }
 

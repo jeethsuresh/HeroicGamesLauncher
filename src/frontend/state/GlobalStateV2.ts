@@ -6,6 +6,7 @@ import type { GameInfo } from 'common/types'
 import type { GameSettingsModalType } from '../screens/Settings/components/SettingsModal'
 import { notify } from 'frontend/helpers'
 import { gameOverridesStore } from 'frontend/helpers/electronStores'
+import { useLibrarySelectionStore } from 'frontend/state/librarySelectionStore'
 import { t } from 'i18next'
 
 type GameOverride = NonNullable<GameInfo['overrides']>
@@ -25,10 +26,15 @@ interface GlobalStateV2 {
         isOpen: true
         type: GameSettingsModalType
         gameInfo: GameInfo
+        /** When set (library multi-select), category toggles apply to every key. */
+        categoryBulkAppNameWithRunners?: string[]
       }
   openGameSettingsModal: (gameInfo: GameInfo) => void
   openGameLogsModal: (gameInfo: GameInfo) => void
-  openGameCategoriesModal: (gameInfo: GameInfo) => void
+  openGameCategoriesModal: (
+    gameInfo: GameInfo,
+    categoryBulkAppNameWithRunners?: string[]
+  ) => void
   closeSettingsModal: () => void
 
   showUploadedLogFileList: boolean
@@ -65,17 +71,21 @@ const useGlobalStateRaw = create<GlobalStateV2>()((set) => ({
       }
     })
   },
-  openGameCategoriesModal: (gameInfo) => {
+  openGameCategoriesModal: (gameInfo, categoryBulkAppNameWithRunners) => {
     set({
       settingsModalProps: {
         isOpen: true,
         type: 'category',
-        gameInfo
+        gameInfo,
+        ...(categoryBulkAppNameWithRunners?.length
+          ? { categoryBulkAppNameWithRunners }
+          : {})
       }
     })
   },
   closeSettingsModal: () => {
     set({ settingsModalProps: { isOpen: false } })
+    useLibrarySelectionStore.getState().clear()
   },
 
   showUploadedLogFileList: false,

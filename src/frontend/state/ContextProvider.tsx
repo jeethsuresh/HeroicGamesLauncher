@@ -52,20 +52,26 @@ const initialContext: ContextType = {
   hiddenGames: {
     list: [],
     add: () => null,
-    remove: () => null
+    addGames: () => null,
+    remove: () => null,
+    removeGames: () => null
   },
   currentCustomCategories: [],
   setCurrentCustomCategories: () => null,
   favouriteGames: {
     list: [],
     add: () => null,
-    remove: () => null
+    addGames: () => null,
+    remove: () => null,
+    removeGames: () => null
   },
   customCategories: {
     list: {},
     listCategories: () => [],
     addToGame: () => null,
+    addGamesToCategory: () => null,
     removeFromGame: () => null,
+    removeGamesFromCategory: () => null,
     addCategory: () => null,
     removeCategory: () => null,
     renameCategory: () => null

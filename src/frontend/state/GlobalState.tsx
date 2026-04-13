@@ -2,7 +2,7 @@ import React, { PureComponent } from 'react'
 
 import {
   ConnectivityStatus,
-  FavouriteGame,
+  type FavouriteGame,
   GameInfo,
   GameStatus,
   HiddenGame,
@@ -23,6 +23,14 @@ import { getGameInfo, getLegendaryConfig } from '../helpers'
 import { i18n, t, TFunction } from 'i18next'
 
 import ContextProvider from './ContextProvider'
+import {
+  mergeGameKeysIntoCategory,
+  removeGameKeysFromCategory
+} from './customCategoryMerge'
+import {
+  mergeGameListEntries,
+  removeGameListEntriesByAppName
+} from './hiddenFavouritesMerge'
 
 import {
   configStore,
@@ -350,52 +358,74 @@ class GlobalState extends PureComponent<Props> {
     this.setState({ lastChangelogShown: value })
   }
 
-  hideGame = (appNameToHide: string, appTitle: string) => {
-    const newHiddenGames = [
-      ...this.state.hiddenGames,
-      { appName: appNameToHide, title: appTitle }
-    ]
-
-    this.setState({
-      hiddenGames: newHiddenGames
+  hideGames = (games: readonly HiddenGame[]) => {
+    if (!games.length) {
+      return
+    }
+    this.setState((prevState) => {
+      const prev = prevState as StateProps
+      const newHiddenGames = mergeGameListEntries(prev.hiddenGames, games)
+      configStore.set('games.hidden', newHiddenGames)
+      return { hiddenGames: newHiddenGames }
     })
-    configStore.set('games.hidden', newHiddenGames)
+  }
+
+  hideGame = (appNameToHide: string, appTitle: string) => {
+    this.hideGames([{ appName: appNameToHide, title: appTitle }])
+  }
+
+  unhideGames = (appNames: readonly string[]) => {
+    if (!appNames.length) {
+      return
+    }
+    this.setState((prevState) => {
+      const prev = prevState as StateProps
+      const newHiddenGames = removeGameListEntriesByAppName(
+        prev.hiddenGames,
+        appNames
+      )
+      configStore.set('games.hidden', newHiddenGames)
+      return { hiddenGames: newHiddenGames }
+    })
   }
 
   unhideGame = (appNameToUnhide: string) => {
-    const newHiddenGames = this.state.hiddenGames.filter(
-      ({ appName }) => appName !== appNameToUnhide
-    )
+    this.unhideGames([appNameToUnhide])
+  }
 
-    this.setState({
-      hiddenGames: newHiddenGames
+  addGamesToFavourites = (games: readonly FavouriteGame[]) => {
+    if (!games.length) {
+      return
+    }
+    this.setState((prevState) => {
+      const prev = prevState as StateProps
+      const newFavouriteGames = mergeGameListEntries(prev.favouriteGames, games)
+      configStore.set('games.favourites', newFavouriteGames)
+      return { favouriteGames: newFavouriteGames }
     })
-    configStore.set('games.hidden', newHiddenGames)
   }
 
   addGameToFavourites = (appNameToAdd: string, appTitle: string) => {
-    const newFavouriteGames = [
-      ...this.state.favouriteGames.filter(
-        (fav) => fav.appName !== appNameToAdd
-      ),
-      { appName: appNameToAdd, title: appTitle }
-    ]
+    this.addGamesToFavourites([{ appName: appNameToAdd, title: appTitle }])
+  }
 
-    this.setState({
-      favouriteGames: newFavouriteGames
+  removeGamesFromFavourites = (appNames: readonly string[]) => {
+    if (!appNames.length) {
+      return
+    }
+    this.setState((prevState) => {
+      const prev = prevState as StateProps
+      const newFavouriteGames = removeGameListEntriesByAppName(
+        prev.favouriteGames,
+        appNames
+      )
+      configStore.set('games.favourites', newFavouriteGames)
+      return { favouriteGames: newFavouriteGames }
     })
-    configStore.set('games.favourites', newFavouriteGames)
   }
 
   removeGameFromFavourites = (appNameToRemove: string) => {
-    const newFavouriteGames = this.state.favouriteGames.filter(
-      ({ appName }) => appName !== appNameToRemove
-    )
-
-    this.setState({
-      favouriteGames: newFavouriteGames
-    })
-    configStore.set('games.favourites', newFavouriteGames)
+    this.removeGamesFromFavourites([appNameToRemove])
   }
 
   getCustomCategories = () =>
@@ -405,21 +435,25 @@ class GlobalState extends PureComponent<Props> {
     Array.from(new Set(this.state.currentCustomCategories)).sort()
 
   setCustomCategory = (newCategory: string) => {
-    const newCustomCategories = this.state.customCategories
-    newCustomCategories[newCategory] = []
-
-    // when adding a new category, if there are categories selected, select the new
-    // one too so the game doesn't disappear form the library
-    let newCurrentCustomCategories = this.state.currentCustomCategories
-    if (this.state.currentCustomCategories.length > 0) {
-      newCurrentCustomCategories = [...newCurrentCustomCategories, newCategory]
-    }
-
-    this.setState({
-      customCategories: newCustomCategories,
-      currentCustomCategories: newCurrentCustomCategories
+    this.setState((prevState) => {
+      const prev = prevState as StateProps
+      if (prev.customCategories[newCategory] !== undefined) {
+        return null
+      }
+      const newCustomCategories = {
+        ...prev.customCategories,
+        [newCategory]: []
+      }
+      let newCurrentCustomCategories = prev.currentCustomCategories
+      if (prev.currentCustomCategories.length > 0) {
+        newCurrentCustomCategories = [...newCurrentCustomCategories, newCategory]
+      }
+      configStore.set('games.customCategories', newCustomCategories)
+      return {
+        customCategories: newCustomCategories,
+        currentCustomCategories: newCurrentCustomCategories
+      }
     })
-    configStore.set('games.customCategories', newCustomCategories)
   }
 
   removeCustomCategory = (category: string) => {
@@ -457,35 +491,50 @@ class GlobalState extends PureComponent<Props> {
     this.setCurrentCustomCategories(newCurrentCustomCategories)
   }
 
-  addGameToCustomCategory = (category: string, appName: string) => {
-    const gamesInCategory = this.state.customCategories[category] || []
-    gamesInCategory.push(appName)
-
-    const newCustomCategories = {
-      ...this.state.customCategories,
-      [category]: gamesInCategory
+  addGamesToCustomCategory = (category: string, gameKeys: readonly string[]) => {
+    if (!gameKeys.length) {
+      return
     }
-
-    this.setState({
-      customCategories: newCustomCategories
+    this.setState((prevState) => {
+      const prev = prevState as StateProps
+      const newCustomCategories = mergeGameKeysIntoCategory(
+        prev.customCategories,
+        category,
+        gameKeys
+      )
+      configStore.set('games.customCategories', newCustomCategories)
+      return { customCategories: newCustomCategories }
     })
-    configStore.set('games.customCategories', newCustomCategories)
+  }
+
+  addGameToCustomCategory = (category: string, appName: string) => {
+    this.addGamesToCustomCategory(category, [appName])
+  }
+
+  removeGamesFromCustomCategory = (
+    category: string,
+    gameKeys: readonly string[]
+  ) => {
+    if (!gameKeys.length) {
+      return
+    }
+    this.setState((prevState) => {
+      const prev = prevState as StateProps
+      const newCustomCategories = removeGameKeysFromCategory(
+        prev.customCategories,
+        category,
+        gameKeys
+      )
+      if (!newCustomCategories) {
+        return null
+      }
+      configStore.set('games.customCategories', newCustomCategories)
+      return { customCategories: newCustomCategories }
+    })
   }
 
   removeGameFromCustomCategory = (category: string, appName: string) => {
-    if (!this.state.customCategories[category]) return
-
-    const newCustomCategories: Record<string, string[]> = {}
-    for (const [key, games] of Object.entries(this.state.customCategories)) {
-      if (key === category)
-        newCustomCategories[key] = games.filter((game) => game !== appName)
-      else newCustomCategories[key] = this.state.customCategories[key]
-    }
-
-    this.setState({
-      customCategories: newCustomCategories
-    })
-    configStore.set('games.customCategories', newCustomCategories)
+    this.removeGamesFromCustomCategory(category, [appName])
   }
 
   handleShowDialogModal = ({
@@ -1157,18 +1206,24 @@ class GlobalState extends PureComponent<Props> {
           hiddenGames: {
             list: hiddenGames,
             add: this.hideGame,
-            remove: this.unhideGame
+            addGames: this.hideGames,
+            remove: this.unhideGame,
+            removeGames: this.unhideGames
           },
           favouriteGames: {
             list: favouriteGames,
             add: this.addGameToFavourites,
-            remove: this.removeGameFromFavourites
+            addGames: this.addGamesToFavourites,
+            remove: this.removeGameFromFavourites,
+            removeGames: this.removeGamesFromFavourites
           },
           customCategories: {
             list: customCategories,
             listCategories: this.getCustomCategories,
             addToGame: this.addGameToCustomCategory,
+            addGamesToCategory: this.addGamesToCustomCategory,
             removeFromGame: this.removeGameFromCustomCategory,
+            removeGamesFromCategory: this.removeGamesFromCustomCategory,
             addCategory: this.setCustomCategory,
             removeCategory: this.removeCustomCategory,
             renameCategory: this.renameCustomCategory

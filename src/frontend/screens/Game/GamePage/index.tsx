@@ -398,10 +398,14 @@ export default React.memo(function GamePage(): JSX.Element | null {
           )}
           {showUninstallModal && (
             <UninstallModal
-              appName={appName}
-              runner={runner}
+              games={[
+                {
+                  appName,
+                  runner,
+                  isDlc: false
+                }
+              ]}
               onClose={() => setShowUninstallModal(false)}
-              isDlc={false}
             />
           )}
 

@@ -1,6 +1,7 @@
 import './index.css'
 
 import React, {
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -18,6 +19,8 @@ import ContextProvider from 'frontend/state/ContextProvider'
 
 import GamesList from './components/GamesList'
 import { FavouriteGame, GameInfo, HiddenGame, Runner } from 'common/types'
+import { libraryGameStorageKey } from 'frontend/constants/libraryDnD'
+import { useLibrarySelectionStore } from 'frontend/state/librarySelectionStore'
 import ErrorComponent from 'frontend/components/UI/ErrorComponent'
 import LibraryHeader from './components/LibraryHeader'
 import {
@@ -638,6 +641,25 @@ export default React.memo(function Library(): JSX.Element {
     installing
   ])
 
+  const visibleLibraryGameKeys = useMemo(
+    () =>
+      libraryToShow.map((g) => libraryGameStorageKey(g.app_name, g.runner)),
+    [libraryToShow]
+  )
+
+  const selectLibraryGamesWithShift = useCallback(
+    (appName: string, runner: Runner) => {
+      useLibrarySelectionStore
+        .getState()
+        .selectRange(visibleLibraryGameKeys, appName, runner)
+    },
+    [visibleLibraryGameKeys]
+  )
+
+  useEffect(() => {
+    return () => useLibrarySelectionStore.getState().clear()
+  }, [])
+
   // we need this to do proper `position: sticky` of the Add Game area
   // the height of the Header can change at runtime with different font families
   // and when resizing the window
@@ -718,7 +740,9 @@ export default React.memo(function Library(): JSX.Element {
         onToggleAlphabetFilter: handleToggleAlphabetFilter,
         gamesForAlphabetFilter,
         alphabetFilterLetter,
-        setAlphabetFilterLetter
+        setAlphabetFilterLetter,
+        visibleLibraryGameKeys,
+        selectLibraryGamesWithShift
       }}
     >
       <Header />

@@ -1,5 +1,5 @@
 import './index.scss'
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useEffect, useMemo, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -12,19 +12,24 @@ import ToggleSwitch from '../ToggleSwitch'
 import { useNavigate, useLocation } from 'react-router-dom'
 import ContextProvider from 'frontend/state/ContextProvider'
 
-interface UninstallModalProps {
+export type UninstallModalGame = {
   appName: string
   runner: Runner
-  onClose: () => void
   isDlc: boolean
 }
 
+interface UninstallModalProps {
+  games: UninstallModalGame[]
+  onClose: () => void
+}
+
 const UninstallModal: React.FC<UninstallModalProps> = function ({
-  appName,
-  runner,
-  onClose,
-  isDlc
+  games,
+  onClose
 }) {
+  const primary = games[0]!
+  const { appName, runner, isDlc: primaryIsDlc } = primary
+
   const [isNative, setIsNative] = useState(true)
   const [winePrefix, setWinePrefix] = useState('')
   const [deletePrefixChecked, setDeletePrefixChecked] = useState(false)
@@ -36,27 +41,50 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
   const location = useLocation()
   const { installingEpicGame, libraryStatus } = useContext(ContextProvider)
   const [gameTitle, setGameTitle] = useState('')
+  const isBulk = games.length > 1
 
-  const isGameRunning = libraryStatus.find(
-    (st) =>
-      st.appName === appName && st.runner === runner && st.status === 'playing'
+  const anyLegendary = useMemo(
+    () => games.some((g) => g.runner === 'legendary'),
+    [games]
+  )
+
+  const isGameRunning = useMemo(
+    () =>
+      games.some((g) =>
+        libraryStatus.find(
+          (st) =>
+            st.appName === g.appName &&
+            st.runner === g.runner &&
+            st.status === 'playing'
+        )
+      ),
+    [games, libraryStatus]
   )
 
   const checkIfIsNative = async () => {
-    // This assumes native games are installed should be changed in the future
-    // if we add option to install windows games even if native is available
-
     setShowUninstallModal(true)
+
+    if (isBulk) {
+      const titles = await Promise.all(
+        games.map(async (g) => {
+          const gameInfo = await window.api.getGameInfo(g.appName, g.runner)
+          return gameInfo?.title ?? g.appName
+        })
+      )
+      setGameTitle(titles.join(', '))
+      setIsNative(true)
+      return
+    }
 
     const gameInfo = await window.api.getGameInfo(appName, runner)
 
-    const isNative = await window.api.isNative({
+    const native = await window.api.isNative({
       runner,
       appName
     })
-    setIsNative(isNative)
+    setIsNative(native)
 
-    if (isDlc) {
+    if (primaryIsDlc) {
       return
     }
 
@@ -83,29 +111,38 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
   }
 
   useEffect(() => {
-    checkIfIsNative()
+    void checkIfIsNative()
   }, [])
 
   const storage: Storage = window.localStorage
   const uninstallGame = async () => {
-    onClose()
+    const allowPrefix =
+      !isBulk && !primaryIsDlc && deletePrefixChecked && !isNative
 
-    await window.api.uninstall(
-      appName,
-      runner,
-      deletePrefixChecked,
-      deleteSettingsChecked
-    )
-    if (runner === 'sideload' && location.pathname.match(/gamepage/)) {
-      navigate('/#library')
+    let didNavigateFromSideload = false
+    for (const g of games) {
+      await window.api.uninstall(
+        g.appName,
+        g.runner,
+        g.isDlc ? false : allowPrefix,
+        deleteSettingsChecked
+      )
+      if (
+        g.runner === 'sideload' &&
+        location.pathname.match(/gamepage/) &&
+        !didNavigateFromSideload
+      ) {
+        navigate('/#library')
+        didNavigateFromSideload = true
+      }
+      storage.removeItem(g.appName)
     }
-    storage.removeItem(appName)
+    onClose()
   }
 
-  const showWineCheckbox = !isNative && !isDlc
+  const showWineCheckbox = !isBulk && !isNative && !primaryIsDlc
 
-  // disallow uninstalling epic games if an epic game is being installed
-  if (installingEpicGame && runner === 'legendary') {
+  if (installingEpicGame && anyLegendary) {
     return (
       <>
         {showUninstallModal && (
@@ -156,7 +193,6 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
     )
   }
 
-  // normal dialog to uninstall a game
   return (
     <>
       {showUninstallModal && (
@@ -166,15 +202,21 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
           </DialogHeader>
           <DialogContent>
             <div className="uninstallModalMessage">
-              {isDlc
-                ? t('gamepage:box.uninstall.dlc', {
-                    defaultValue: 'Do you want to uninstall "{{title}}" (DLC)?',
-                    title: gameTitle
+              {isBulk
+                ? t('box.uninstall.messageBulk', {
+                    count: games.length,
+                    titles: gameTitle
                   })
-                : t('gamepage:box.uninstall.message', {
-                    defaultValue: 'Do you want to uninstall "{{title}}"?',
-                    title: gameTitle
-                  })}
+                : primaryIsDlc
+                  ? t('gamepage:box.uninstall.dlc', {
+                      defaultValue:
+                        'Do you want to uninstall "{{title}}" (DLC)?',
+                      title: gameTitle
+                    })
+                  : t('gamepage:box.uninstall.message', {
+                      defaultValue: 'Do you want to uninstall "{{title}}"?',
+                      title: gameTitle
+                    })}
             </div>
             {showWineCheckbox && (
               <ToggleSwitch
@@ -200,7 +242,7 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
                 )}
               </p>
             )}
-            {!isDlc && (
+            {games.some((g) => !g.isDlc) && (
               <ToggleSwitch
                 htmlId="uninstallsettingCheckbox"
                 value={deleteSettingsChecked}
