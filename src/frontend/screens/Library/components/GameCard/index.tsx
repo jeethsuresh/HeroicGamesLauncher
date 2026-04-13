@@ -238,7 +238,7 @@ const GameCard = ({
       }
     }
     for (let i = 0; i < toInstall.length; i++) {
-      handleGameCardClick(toInstall[i]!)
+      handleGameCardClick(toInstall[i])
       if (i < toInstall.length - 1) {
         await new Promise<void>((resolve) => {
           const timeout = window.setTimeout(() => {
@@ -895,12 +895,12 @@ const GameCard = ({
         if (bulk.length > 1) {
           for (const target of bulk) {
             storage.removeItem(target.appName)
-            await window.api.removeFromDMQueue(target.appName)
+            window.api.removeFromDMQueue(target.appName)
           }
           return
         }
         storage.removeItem(appName)
-        await window.api.removeFromDMQueue(appName)
+        window.api.removeFromDMQueue(appName)
         return
       }
 

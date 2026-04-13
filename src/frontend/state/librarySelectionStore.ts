@@ -35,7 +35,8 @@ export const useLibrarySelectionStore = create<LibrarySelectionState>(
           let anchor = s.anchorKey
           if (anchor === key) {
             const remaining = Array.from(next)
-            anchor = remaining.length > 0 ? remaining[remaining.length - 1]! : null
+            anchor =
+              remaining.length > 0 ? remaining[remaining.length - 1] : null
           }
           return { selectedKeys: Array.from(next), anchorKey: anchor }
         }

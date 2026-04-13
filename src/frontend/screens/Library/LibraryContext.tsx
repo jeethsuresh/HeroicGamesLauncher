@@ -1,6 +1,6 @@
 import React from 'react'
 
-import { GameInfo, Runner } from 'common/types'
+import { GameInfo } from 'common/types'
 import { LibraryContextType } from 'frontend/types'
 
 const initialContext: LibraryContextType = {
@@ -44,7 +44,7 @@ const initialContext: LibraryContextType = {
   setAlphabetFilterLetter: () => null,
   gamesForAlphabetFilter: [] as GameInfo[],
   visibleLibraryGameKeys: [],
-  selectLibraryGamesWithShift: (_appName: string, _runner: Runner) => null
+  selectLibraryGamesWithShift: () => {}
 }
 
 export default React.createContext(initialContext)

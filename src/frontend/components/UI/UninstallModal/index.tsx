@@ -27,7 +27,7 @@ const UninstallModal: React.FC<UninstallModalProps> = function ({
   games,
   onClose
 }) {
-  const primary = games[0]!
+  const primary = games[0]
   const { appName, runner, isDlc: primaryIsDlc } = primary
 
   const [isNative, setIsNative] = useState(true)
