@@ -26,13 +26,19 @@
 
 .gameListHeader {
   display: grid;
-  grid-template-columns: 3fr 2fr 1fr 10%;
+  grid-template-columns: 42px 3fr 2fr 1fr 10%;
+  align-items: center;
   justify-items: baseline;
+  column-gap: var(--space-2xs-fixed);
   width: 100%;
   color: var(--text-default);
   font-weight: var(--bold);
   padding-bottom: 0.5rem;
   font-size: var(--text-lg);
+}
+
+.gameListHeaderSelectAll {
+  justify-self: center;
 }
 
 .gameListHeader span:last-child {

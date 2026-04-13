@@ -1,9 +1,12 @@
-import React, { useContext, useEffect, useRef } from 'react'
+import React, { useContext, useEffect, useMemo, useRef } from 'react'
 import { GameInfo, Runner } from 'common/types'
 import cx from 'classnames'
 import GameCard from '../GameCard'
 import ContextProvider from 'frontend/state/ContextProvider'
 import { useTranslation } from 'react-i18next'
+import Checkbox from '@mui/material/Checkbox'
+import { libraryGameStorageKey } from 'frontend/constants/libraryDnD'
+import { useLibrarySelectionStore } from 'frontend/state/librarySelectionStore'
 
 interface Props {
   library: GameInfo[]
@@ -54,6 +57,46 @@ const GamesList = ({
   const { t } = useTranslation()
   const listRef = useRef<HTMLDivElement | null>(null)
   const { activeController } = useContext(ContextProvider)
+
+  const visibleRows = useMemo(() => {
+    const rows: { gameInfo: GameInfo; originalIndex: number }[] = []
+    library.forEach((gameInfo, originalIndex) => {
+      let is_dlc = false
+      if (gameInfo.runner !== 'sideload') {
+        is_dlc = gameInfo.install.is_dlc ?? false
+      }
+      if (is_dlc) {
+        return
+      }
+      if (!gameInfo.is_installed && onlyInstalled) {
+        return
+      }
+      rows.push({ gameInfo, originalIndex })
+    })
+    return rows
+  }, [library, onlyInstalled])
+
+  const visibleRowKeys = useMemo(
+    () =>
+      visibleRows.map(({ gameInfo }) =>
+        libraryGameStorageKey(gameInfo.app_name, gameInfo.runner)
+      ),
+    [visibleRows]
+  )
+
+  const selectedKeys = useLibrarySelectionStore((s) => s.selectedKeys)
+  const selectedKeySet = useMemo(
+    () => new Set(selectedKeys),
+    [selectedKeys]
+  )
+  const visibleSelectedCount = useMemo(
+    () => visibleRowKeys.filter((k) => selectedKeySet.has(k)).length,
+    [visibleRowKeys, selectedKeySet]
+  )
+  const allVisibleSelected =
+    visibleRowKeys.length > 0 && visibleSelectedCount === visibleRowKeys.length
+  const someVisibleSelected =
+    visibleSelectedCount > 0 && !allVisibleSelected
 
   useEffect(() => {
     if (library.length) {
@@ -127,6 +170,40 @@ const GamesList = ({
     >
       {layout === 'list' && (
         <div className="gameListHeader">
+          <div
+            className="gameListHeaderSelectAll"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <Checkbox
+              size="small"
+              checked={allVisibleSelected}
+              indeterminate={someVisibleSelected}
+              disabled={visibleRowKeys.length === 0}
+              tabIndex={0}
+              inputProps={{
+                'aria-label': t(
+                  'library.selectAllGames',
+                  'Select all games in this list'
+                )
+              }}
+              sx={{
+                padding: '4px',
+                color: 'var(--text-secondary, rgba(255,255,255,0.7))',
+                '&.Mui-checked, &.MuiCheckbox-indeterminate': {
+                  color: 'var(--accent, #7fdfff)'
+                }
+              }}
+              onChange={() => {
+                const store = useLibrarySelectionStore.getState()
+                if (allVisibleSelected) {
+                  store.clear()
+                } else {
+                  store.setSelectedKeys(visibleRowKeys)
+                }
+              }}
+            />
+          </div>
           <span>{t('game.title', 'Game Title')}</span>
           <span>{t('game.status', 'Status')}</span>
           <span>{t('game.store', 'Store')}</span>
@@ -134,20 +211,10 @@ const GamesList = ({
         </div>
       )}
       {!!library.length &&
-        library.map((gameInfo, index) => {
+        visibleRows.map(({ gameInfo, originalIndex }) => {
           const { app_name, is_installed, runner } = gameInfo
-          const isJustPlayed = (isFavourite || isRecent) && index === 0
-          let is_dlc = false
-          if (gameInfo.runner !== 'sideload') {
-            is_dlc = gameInfo.install.is_dlc ?? false
-          }
-
-          if (is_dlc) {
-            return null
-          }
-          if (!is_installed && onlyInstalled) {
-            return null
-          }
+          const isJustPlayed =
+            (isFavourite || isRecent) && originalIndex === 0
 
           const hasUpdate = is_installed && gameUpdates?.includes(app_name)
           return (
@@ -162,7 +229,9 @@ const GamesList = ({
               isRecent={isRecent}
               gameInfo={gameInfo}
               justPlayed={isJustPlayed}
-              dataTour={index === 0 ? 'library-game-card' : undefined}
+              dataTour={
+                originalIndex === 0 ? 'library-game-card' : undefined
+              }
             />
           )
         })}

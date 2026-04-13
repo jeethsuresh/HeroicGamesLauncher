@@ -18,6 +18,7 @@ type LibrarySelectionState = {
     runner: Runner
   ) => void
   clear: () => void
+  setSelectedKeys: (keys: readonly string[]) => void
 }
 
 export const useLibrarySelectionStore = create<LibrarySelectionState>(
@@ -63,7 +64,13 @@ export const useLibrarySelectionStore = create<LibrarySelectionState>(
       set({ selectedKeys: [...rangeKeys], anchorKey: currentKey })
     },
 
-    clear: () => set({ selectedKeys: [], anchorKey: null })
+    clear: () => set({ selectedKeys: [], anchorKey: null }),
+
+    setSelectedKeys: (keys) =>
+      set({
+        selectedKeys: [...keys],
+        anchorKey: keys.length > 0 ? keys[keys.length - 1]! : null
+      })
   })
 )
 

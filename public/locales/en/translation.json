@@ -616,6 +616,7 @@
         "options": "Launch Options..."
     },
     "library": {
+        "selectAllGames": "Select all games in this list",
         "selectGameCheckbox": "Select game for categories and multi-drag",
         "hideAlphabetFilter": "Hide Alphabet Filter",
         "showAlphabetFilter": "Show Alphabet Filter",

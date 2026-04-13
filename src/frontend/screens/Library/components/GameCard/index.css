@@ -44,8 +44,10 @@
 }
 
 .gameListItem .gameCardSelectCheckboxWrap {
-  top: 6px;
-  left: 8px;
+  grid-area: select;
+  position: static;
+  justify-self: center;
+  align-self: center;
 }
 
 .gameCardSelectCheckboxWrap:not(.gameCardSelectCheckboxWrap--checked) {
@@ -235,9 +237,10 @@
 
 .gameListItem {
   display: grid;
-  grid-template-columns: 90% 10%;
-  grid-template-areas: 'link action';
+  grid-template-columns: 42px minmax(0, 1fr) 10%;
+  grid-template-areas: 'select link action';
   align-items: center;
+  column-gap: var(--space-2xs-fixed);
   position: relative;
   cursor: default;
   place-self: center;
@@ -253,6 +256,7 @@
 .gameListItem > a {
   grid-area: link;
   display: grid;
+  min-width: 0;
   grid-template-columns: 3fr 2fr 1fr;
   position: relative;
   width: 100%;
