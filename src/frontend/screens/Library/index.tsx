@@ -642,8 +642,7 @@ export default React.memo(function Library(): JSX.Element {
   ])
 
   const visibleLibraryGameKeys = useMemo(
-    () =>
-      libraryToShow.map((g) => libraryGameStorageKey(g.app_name, g.runner)),
+    () => libraryToShow.map((g) => libraryGameStorageKey(g.app_name, g.runner)),
     [libraryToShow]
   )
 

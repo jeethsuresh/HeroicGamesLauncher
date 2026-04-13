@@ -23,7 +23,11 @@ type Props = {
   categoryBulkAppNameWithRunners?: string[]
 }
 
-function SettingsModal({ gameInfo, type, categoryBulkAppNameWithRunners }: Props) {
+function SettingsModal({
+  gameInfo,
+  type,
+  categoryBulkAppNameWithRunners
+}: Props) {
   const { t } = useTranslation()
   const { closeSettingsModal } = useGlobalState.keys('closeSettingsModal')
 

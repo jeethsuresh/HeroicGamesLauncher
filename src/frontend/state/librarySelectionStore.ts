@@ -54,7 +54,8 @@ export const useLibrarySelectionStore = create<LibrarySelectionState>(
       }
 
       const anchorKey = get().anchorKey
-      const anchorIdx = anchorKey !== null ? orderedKeys.indexOf(anchorKey) : end
+      const anchorIdx =
+        anchorKey !== null ? orderedKeys.indexOf(anchorKey) : end
       const startIdx = anchorIdx === -1 ? end : anchorIdx
       const lo = Math.min(startIdx, end)
       const hi = Math.max(startIdx, end)

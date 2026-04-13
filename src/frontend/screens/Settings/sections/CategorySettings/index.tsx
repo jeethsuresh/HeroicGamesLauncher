@@ -17,7 +17,9 @@ type CategorySettingsProps = {
   bulkAppNameWithRunners?: string[]
 }
 
-const CategorySettings = ({ bulkAppNameWithRunners }: CategorySettingsProps) => {
+const CategorySettings = ({
+  bulkAppNameWithRunners
+}: CategorySettingsProps) => {
   const {
     customCategories,
     currentCustomCategories,

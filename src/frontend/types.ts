@@ -61,7 +61,10 @@ export interface ContextType {
     list: Record<string, string[]>
     listCategories: () => string[]
     addToGame: (category: string, appName: string) => void
-    addGamesToCategory: (category: string, gameStorageKeys: readonly string[]) => void
+    addGamesToCategory: (
+      category: string,
+      gameStorageKeys: readonly string[]
+    ) => void
     removeFromGame: (category: string, appName: string) => void
     removeGamesFromCategory: (
       category: string,

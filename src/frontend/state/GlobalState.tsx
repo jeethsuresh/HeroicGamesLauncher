@@ -446,7 +446,10 @@ class GlobalState extends PureComponent<Props> {
       }
       let newCurrentCustomCategories = prev.currentCustomCategories
       if (prev.currentCustomCategories.length > 0) {
-        newCurrentCustomCategories = [...newCurrentCustomCategories, newCategory]
+        newCurrentCustomCategories = [
+          ...newCurrentCustomCategories,
+          newCategory
+        ]
       }
       configStore.set('games.customCategories', newCustomCategories)
       return {
@@ -491,7 +494,10 @@ class GlobalState extends PureComponent<Props> {
     this.setCurrentCustomCategories(newCurrentCustomCategories)
   }
 
-  addGamesToCustomCategory = (category: string, gameKeys: readonly string[]) => {
+  addGamesToCustomCategory = (
+    category: string,
+    gameKeys: readonly string[]
+  ) => {
     if (!gameKeys.length) {
       return
     }

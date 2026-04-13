@@ -11,11 +11,7 @@ describe('customCategoryMerge', () => {
       'gameC_nile'
     ])
     expect(after.favorites).toEqual(
-      expect.arrayContaining([
-        'gameA_legendary',
-        'gameB_gog',
-        'gameC_nile'
-      ])
+      expect.arrayContaining(['gameA_legendary', 'gameB_gog', 'gameC_nile'])
     )
     expect(after.favorites?.length).toBe(3)
     expect(before.favorites).toEqual(['gameA_legendary'])
@@ -51,7 +47,10 @@ describe('customCategoryMerge', () => {
     const before = {
       c: ['a_legendary', 'b_gog', 'c_nile']
     }
-    const after = removeGameKeysFromCategory(before, 'c', ['a_legendary', 'c_nile'])
+    const after = removeGameKeysFromCategory(before, 'c', [
+      'a_legendary',
+      'c_nile'
+    ])
     expect(after?.c).toEqual(['b_gog'])
   })
 

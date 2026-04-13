@@ -120,7 +120,9 @@ export function libraryBulkGameTargets(
         out.push(parsed)
       }
     }
-    return out.length ? out : [{ appName: primaryAppName, runner: primaryRunner }]
+    return out.length
+      ? out
+      : [{ appName: primaryAppName, runner: primaryRunner }]
   }
   return [{ appName: primaryAppName, runner: primaryRunner }]
 }

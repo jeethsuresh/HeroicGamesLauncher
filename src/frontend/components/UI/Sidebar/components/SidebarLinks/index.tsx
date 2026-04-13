@@ -37,14 +37,18 @@ import SidebarItem from '../SidebarItem'
 type PathSplit = [a: undefined, b: undefined, type: string]
 
 function dndMimeOk(e: DragEvent) {
-  return Array.from(e.dataTransfer.types).includes(HEROIC_LIBRARY_GAMES_DRAG_MIME)
+  return Array.from(e.dataTransfer.types).includes(
+    HEROIC_LIBRARY_GAMES_DRAG_MIME
+  )
 }
 
 export default function SidebarLinks() {
   const { t } = useTranslation()
   const location = useLocation() as { pathname: string }
   const [, , type] = location.pathname.split('/') as PathSplit
-  const [dropHoverCategory, setDropHoverCategory] = useState<string | null>(null)
+  const [dropHoverCategory, setDropHoverCategory] = useState<string | null>(
+    null
+  )
 
   const {
     amazon,
