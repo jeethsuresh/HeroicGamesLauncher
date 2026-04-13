@@ -1,6 +1,6 @@
 import './index.scss'
 import ContextProvider from 'frontend/state/ContextProvider'
-import { useContext, useEffect, useMemo, useState } from 'react'
+import { useContext, useMemo, useState } from 'react'
 import SettingsContext from '../../SettingsContext'
 import { Box, Button, Divider, IconButton } from '@mui/material'
 import { TextInputField, ToggleSwitch } from 'frontend/components/UI'
@@ -27,7 +27,6 @@ const CategorySettings = ({ bulkAppNameWithRunners }: CategorySettingsProps) => 
 
   const [newCategory, setNewCategory] = useState('')
   const [categoryToDelete, setCategoryToDelete] = useState('')
-  const [assignedCategories, setAssignedCategories] = useState<string[]>([])
 
   const appNameWithRunner = useMemo(
     () => `${appName}_${runner}`,
@@ -43,26 +42,11 @@ const CategorySettings = ({ bulkAppNameWithRunners }: CategorySettingsProps) => 
 
   const { t } = useTranslation()
 
-  const updateCategories = () => {
-    setAssignedCategories(
-      customCategories
-        .listCategories()
-        .filter((cat) => {
-          const gamesInCat = customCategories.list[cat]
-          return categoryTargetKeys.every((key) => gamesInCat.includes(key))
-        })
-    )
-  }
-
-  useEffect(() => {
-    updateCategories()
-  }, [customCategories.list, categoryTargetKeys])
-
   const isCategorySubmissionDisabled = useMemo(
     () =>
       newCategory.trim().length <= 0 ||
       customCategories.listCategories().includes(newCategory.trim()),
-    [newCategory, customCategories.listCategories]
+    [newCategory, customCategories]
   )
 
   const handleSubmit = () => {
@@ -78,7 +62,6 @@ const CategorySettings = ({ bulkAppNameWithRunners }: CategorySettingsProps) => 
 
   const handleAddGameToCategory = (category: string) => {
     customCategories.addGamesToCategory(category, categoryTargetKeys)
-    updateCategories()
   }
 
   const handleShowRemoveCategoryConfirmation = (category: string) => {
@@ -92,14 +75,19 @@ const CategorySettings = ({ bulkAppNameWithRunners }: CategorySettingsProps) => 
     )
       setCurrentCustomCategories([])
     customCategories.removeCategory(category)
-    updateCategories()
     setCategoryToDelete('')
   }
 
   const handleToggleSwitchChange = (category: string) => {
-    if (!assignedCategories.includes(category))
+    const gamesInCat = customCategories.list[category] || []
+    const inCategory = categoryTargetKeys.filter((key) =>
+      gamesInCat.includes(key)
+    ).length
+    if (inCategory === 0) {
       handleAddGameToCategory(category)
-    else handleRemoveGameFromCategory(category)
+    } else {
+      handleRemoveGameFromCategory(category)
+    }
   }
 
   return (
@@ -166,27 +154,45 @@ const CategorySettings = ({ bulkAppNameWithRunners }: CategorySettingsProps) => 
           paddingBottom: 4
         }}
       >
-        {customCategories.listCategories().map((category) => (
-          <Box key={category} sx={{ display: 'flex', gap: 2 }}>
-            <ToggleSwitch
-              title={category}
-              htmlId={`category-checkbox-${category}`}
-              value={assignedCategories.includes(category)}
-              handleChange={() => {
-                handleToggleSwitchChange(category)
-              }}
-            />
-            <IconButton
-              color="error"
-              sx={{ padding: 2 }}
-              onClick={() => {
-                handleShowRemoveCategoryConfirmation(category)
-              }}
-            >
-              <DeleteForeverIcon />
-            </IconButton>
-          </Box>
-        ))}
+        {customCategories.listCategories().map((category) => {
+          const gamesInCat = customCategories.list[category] || []
+          const inCategory = categoryTargetKeys.filter((key) =>
+            gamesInCat.includes(key)
+          ).length
+          const allInCategory = inCategory === categoryTargetKeys.length
+          const partialInCategory =
+            inCategory > 0 && inCategory < categoryTargetKeys.length
+          return (
+            <Box key={category} sx={{ display: 'flex', gap: 2 }}>
+              <ToggleSwitch
+                title={category}
+                htmlId={`category-checkbox-${category}`}
+                value={allInCategory}
+                indeterminate={partialInCategory}
+                description={
+                  partialInCategory
+                    ? t(
+                        'category-settings.some-selected-in-category',
+                        'Some selected games are in this category. Click to remove all selected games from this category; click again to add all selected games.'
+                      )
+                    : ''
+                }
+                handleChange={() => {
+                  handleToggleSwitchChange(category)
+                }}
+              />
+              <IconButton
+                color="error"
+                sx={{ padding: 2 }}
+                onClick={() => {
+                  handleShowRemoveCategoryConfirmation(category)
+                }}
+              >
+                <DeleteForeverIcon />
+              </IconButton>
+            </Box>
+          )
+        })}
       </Box>
     </>
   )

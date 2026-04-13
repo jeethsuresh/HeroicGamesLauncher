@@ -223,6 +223,7 @@
         "delete-question": "Proceeding will permanently remove this category and unassign it from all games. Continue?",
         "new-category": "New Category",
         "remove-category": "Remove Category",
+        "some-selected-in-category": "Some selected games are in this category. Click to remove all selected games from this category; click again to add all selected games.",
         "warning": "Warning"
     },
     "common": {

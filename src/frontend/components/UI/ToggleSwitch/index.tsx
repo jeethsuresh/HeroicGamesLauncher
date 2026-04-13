@@ -1,5 +1,5 @@
 import classNames from 'classnames'
-import { ChangeEventHandler, useContext } from 'react'
+import { ChangeEventHandler, useContext, useEffect, useRef } from 'react'
 import ContextProvider from 'frontend/state/ContextProvider'
 import './index.css'
 
@@ -12,6 +12,8 @@ interface Props {
   extraClass?: string
   description?: string
   fading?: boolean
+  /** Tri-state checkbox: when true, `value` should be false; not all usages support this. */
+  indeterminate?: boolean
 }
 
 export default function ToggleSwitch(props: Props) {
@@ -23,25 +25,39 @@ export default function ToggleSwitch(props: Props) {
     htmlId,
     extraClass,
     description = '',
-    fading
+    fading,
+    indeterminate = false
   } = props
   const { isRTL } = useContext(ContextProvider)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    const el = inputRef.current
+    if (el) {
+      el.indeterminate = indeterminate
+    }
+  }, [indeterminate, value])
+
+  const checked = Boolean(value)
 
   return (
     <>
       <input
+        ref={inputRef}
         id={htmlId}
         disabled={disabled}
-        checked={Boolean(value)}
+        checked={checked}
         type="checkbox"
         onChange={handleChange}
         aria-label={title}
+        aria-checked={indeterminate ? 'mixed' : checked}
         className="hiddenCheckbox"
       />
       <label
         className={classNames(`toggleSwitchWrapper Field ${extraClass}`, {
           isRTL,
-          fading
+          fading,
+          'toggleSwitchWrapper--indeterminate': indeterminate
         })}
         htmlFor={htmlId}
         title={description}

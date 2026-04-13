@@ -45,6 +45,15 @@
   color: var(--background);
 }
 
+.hiddenCheckbox + .toggleSwitchWrapper.toggleSwitchWrapper--indeterminate:before {
+  content: '\2013';
+  background: var(--neutral-04);
+  color: var(--accent);
+  font-size: var(--text-lg);
+  line-height: 1;
+  font-weight: var(--bold);
+}
+
 .hiddenCheckbox:checked + .toggleSwitchWrapper:before {
   content: '\2713';
   background: var(--accent);
